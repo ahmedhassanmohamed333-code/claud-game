@@ -1,0 +1,1 @@
+{"name":"gem-game","version":"1.0.0","description":"لعبة جواهر تعليمية يتحكم بها المعلم","main":"server.js","scripts":{"start":"node server.js"},"dependencies":{"ws":"^8.18.0"},"license":"MIT"}
