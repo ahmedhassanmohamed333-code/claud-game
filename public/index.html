@@ -1,0 +1,50 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>لعبة الجواهر 💎</title>
+<style>
+body{font-family:system-ui,Tahoma;background:#1b1b2f;color:#fff;margin:0;padding:12px;text-align:center}
+button{font-size:18px;margin:4px;padding:10px 16px;border:0;border-radius:10px;background:#6c5ce7;color:#fff;cursor:pointer}
+button.on{background:#00b894}.opt{display:block;width:100%;max-width:420px;margin:8px auto}
+canvas{background:#2d2d44;border-radius:10px;max-width:100%}
+#rank{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0}
+.r{background:#2d2d44;padding:8px 12px;border-radius:10px}.me{outline:2px solid #fdcb6e}
+#pad button{width:64px;height:64px;font-size:26px}
+</style></head><body>
+<h2>💎 لعبة الجواهر</h2><div id="ctl"></div><div id="rank"></div><div id="area"></div><div id="pad"></div>
+<script>
+const isT=new URLSearchParams(location.search).has('teacher');
+const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
+let me=null,S=null;const $=id=>document.getElementById(id),tx=o=>ws.send(JSON.stringify(o));
+ws.onopen=()=>isT?tx({t:'teacher',pass:prompt('كلمة سر المعلم')}):tx({t:'join',name:prompt('اسمك؟')||'لاعب'});
+ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.t==='me')me=m.id;if(m.t==='err')alert(m.msg);if(m.t==='state'){S=m;render()}};
+const medals=['🥇','🥈','🥉','4️⃣','5️⃣'];
+function render(){
+  $('rank').innerHTML=S.players.map((p,i)=>`<div class="r ${p.id===me?'me':''}">${medals[i]} ${p.name}: ${p.gems}💎 ${p.canPlay?'🎮':'⏸️'}</div>`).join('');
+  $('ctl').innerHTML=isT?`<div>المرحلة ${S.stage+1<0?0:S.stage+1} / ${S.total}</div>
+   <button onclick="tx({t:'next'})">▶️ ابدأ / المرحلة التالية</button>
+   <button onclick="tx({t:'all',on:true})">🎮 الذراع للجميع</button>
+   <button onclick="tx({t:'all',on:false})">⏸️ سحب الذراع</button>
+   <button onclick="confirm('إعادة؟')&&tx({t:'reset'})">🔄 إعادة</button><div>`+
+   S.players.map(p=>`<button class="${p.canPlay?'on':''}" onclick="tx({t:'toggle',id:${p.id}})">${p.name}</button>`).join('')+'</div>':'';
+  const a=$('area'),sd=S.sd;
+  if(!sd){a.innerHTML='<h3>بانتظار المعلم لبدء اللعبة...</h3>';$('pad').innerHTML='';return}
+  const mp=S.players.find(p=>p.id===me);
+  if(sd.type==='question'){
+    $('pad').innerHTML='';
+    a.innerHTML=`<small>📚 ${sd.cat||""}</small><h3>${sd.q}</h3><p>الجائزة: ${sd.gems}💎</p>`+(isT?'':sd.options.map((o,i)=>`<button class="opt" ${mp&&mp.canPlay&&!mp.answered?'':'disabled'} onclick="tx({t:'answer',i:${i}})">${o}</button>`).join(''))+(mp&&!mp.canPlay?'<p>⏸️ بانتظار المعلم ليعطيك الذراع</p>':'')+(mp&&mp.answered?'<p>✅ تم إرسال إجابتك</p>':'');
+  }else drawMaze(sd,a);
+}
+function drawMaze(sd,a){
+  if(!$('cv')){a.innerHTML='<canvas id="cv"></canvas>'}
+  const g=sd.grid,T=40,cv=$('cv');cv.width=g[0].length*T;cv.height=g.length*T;const c=cv.getContext('2d');c.font='30px serif';c.textAlign='center';c.textBaseline='middle';
+  const mine=S.players.find(p=>p.id===me);
+  g.forEach((r,y)=>[...r].forEach((ch,x)=>{
+    if(ch==='#'){c.fillStyle='#636e72';c.fillRect(x*T,y*T,T,T)}
+    if(ch==='G'&&!(mine&&mine.got.includes(x+','+y)))c.fillText('💎',x*T+T/2,y*T+T/2);
+  }));
+  S.monsters.forEach(m=>c.fillText('👹',m.x*T+T/2,m.y*T+T/2));
+  S.players.forEach(p=>{c.globalAlpha=p.id===me?1:.6;c.fillText('🧙',p.x*T+T/2,p.y*T+T/2)});c.globalAlpha=1;
+  $('pad').innerHTML=isT?'':`<div><button onclick="mv(0,-1)">⬆️</button></div><div><button onclick="mv(1,0)">➡️</button><button onclick="mv(-1,0)">⬅️</button></div><div><button onclick="mv(0,1)">⬇️</button></div>`;
+}
+const mv=(dx,dy)=>tx({t:'move',dx,dy});
+addEventListener('keydown',e=>{const k={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(k&&!isT){e.preventDefault();mv(...k)}});
+</script></body></html>
